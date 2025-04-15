@@ -4,14 +4,15 @@ import { getFirestore } from "firebase/firestore";  // if you plan to use Firest
 import { getStorage } from "firebase/storage";        // if you plan to upload media files
 
 const firebaseConfig = {
-    apiKey: "AIzaSyDLmXDLyL3TUc1Gb3y1XKglAUzYXXfT25E",
-    authDomain: "centeradminapp.firebaseapp.com",
-    projectId: "centeradminapp",
-    storageBucket: "centeradminapp.firebasestorage.app",
-    messagingSenderId: "703941171715",
-    appId: "1:703941171715:web:e4a1e5c30a149b6f594c36",
-    measurementId: "G-P0LRHQJCVS"
+    apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+    authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.REACT_APP_FIREBASE_APP_ID,
+    measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
 };
+  
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
