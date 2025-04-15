@@ -25,10 +25,11 @@ const DailyReport = () => {
   const [kidEmail, setKidEmail] = useState('');
 
   // State for available themes fetched from Firebase.
+  // These themes are used both to show the checkboxes and to determine the daily themes.
   const [availableThemes, setAvailableThemes] = useState([]);
 
   // Form state for the daily report.
-  // Initialize the 'themes' field as an empty array so no checkboxes are pre-selected.
+  // The "themes" field holds the daily theme selection.
   const [formData, setFormData] = useState({
     childName: childFromParam,
     inTime: '',
@@ -42,7 +43,7 @@ const DailyReport = () => {
     poops: '',
     feelings: [],
     notes: '',
-    themes: [],
+    themes: [], // daily theme checkboxes
     email: '',
   });
 
@@ -87,8 +88,7 @@ const DailyReport = () => {
             themes = data.theme.split(',').map(tag => tag.trim());
           }
           setAvailableThemes(themes);
-          
-          // If the document has themeOfTheDay, pre-select those checkboxes.
+          // Pre-select daily themes if available (optional)
           if (data.themeOfTheDay && Array.isArray(data.themeOfTheDay)) {
             setFormData(prev => ({
               ...prev,
@@ -214,7 +214,7 @@ const DailyReport = () => {
     }
   };
 
-  // --- Handler for theme checkbox changes ---
+  // --- Handler for daily theme checkbox changes ---
   const handleThemeCheckboxChange = (option) => {
     if (formData.themes.includes(option)) {
       setFormData(prev => ({
@@ -229,16 +229,39 @@ const DailyReport = () => {
     }
   };
 
+  // Helper function to convert 24-hour time ("HH:MM") to 12-hour format with AM/PM.
+  const convertTimeTo12Hour = (timeStr) => {
+    if (!timeStr) return '';
+    const [hour, minute] = timeStr.split(':');
+    let hr = parseInt(hour, 10);
+    const ampm = hr >= 12 ? 'PM' : 'AM';
+    hr = hr % 12 || 12;
+    return `${hr.toString().padStart(2, '0')}:${minute} ${ampm}`;
+  };
+
   // --- Handle daily report submission ---
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Convert times to 12-hour format including AM/PM
+    const formattedInTime = convertTimeTo12Hour(formData.inTime);
+    const formattedOutTime = convertTimeTo12Hour(formData.outTime);
+    const formattedSleepFrom = convertTimeTo12Hour(formData.sleepFrom);
+    const formattedSleepTo = convertTimeTo12Hour(formData.sleepTo);
+
+    // Exclude the "themes" field from formData and then include it as themeOfTheDay.
+    const { themes, ...rest } = formData;
     const reportData = {
-      ...formData,
-      theme: formData.themes, // Save the final themes array
+      ...rest,
+      inTime: formattedInTime,
+      outTime: formattedOutTime,
+      sleepFrom: formattedSleepFrom,
+      sleepTo: formattedSleepTo,
+      // Send the selected daily themes under a single field "themeOfTheDay"
+      themeOfTheDay: themes,
       date: new Date()
     };
-    // Remove unneeded keys from reportData if necessary
-    delete reportData.themes;
+
     try {
       await addDoc(collection(db, 'dailyReports'), reportData);
       alert("Daily report submitted successfully!");
@@ -267,12 +290,12 @@ const DailyReport = () => {
     }
   };
 
-  // --- Kid-friendly Styles ---
+  // Kid-friendly Styles (for the form section)
   const containerStyle = {
     background: 'linear-gradient(135deg, #ffecd2, #fcb69f)',
     minHeight: '100vh',
     padding: '20px',
-    fontFamily: 'Comic Sans MS, cursive, sans-serif',
+    fontFamily: 'Inter, Arial, sans-serif',
   };
 
   const formStyleCSS = {
@@ -331,10 +354,9 @@ const DailyReport = () => {
 
   const columnStyle = { flex: 1, display: 'flex', flexDirection: 'column' };
 
-  // --- Compute available children for dropdown ---
-  // Only display children who are present and haven't reported today.
+  // Compute available children for dropdown (only present children that haven't reported today)
   const availableChildren = Object.keys(presentChildren).filter(
-    (kidName) => !reportedChildren.includes(kidName)
+    kidName => !reportedChildren.includes(kidName)
   );
 
   return (
@@ -354,7 +376,7 @@ const DailyReport = () => {
           onChange={handleChange}
         >
           <option value="" disabled>Select Child</option>
-          {availableChildren.map((kidName) => (
+          {availableChildren.map(kidName => (
             <option key={kidName} value={kidName}>
               {kidName}
             </option>
@@ -406,7 +428,7 @@ const DailyReport = () => {
         </div>
 
         {/* Snack Selection */}
-        <label style={labelStyleCSS}>Child at Snack</label>
+        <label style={labelStyleCSS}>Child ate Snacks</label>
         <div style={{ marginBottom: '15px' }}>
           {['All', 'Some', 'None'].map(option => (
             <label key={option} style={{ fontWeight: '500', fontSize: '14px', marginRight: '10px' }}>
@@ -424,7 +446,7 @@ const DailyReport = () => {
         </div>
 
         {/* Meal Selection */}
-        <label style={labelStyleCSS}>Child at Meal</label>
+        <label style={labelStyleCSS}>Child ate Meals</label>
         <div style={{ marginBottom: '15px' }}>
           {['All', 'Some', 'None'].map(option => (
             <label key={option} style={{ fontWeight: '500', fontSize: '14px', marginRight: '10px' }}>
@@ -549,8 +571,8 @@ const DailyReport = () => {
           onChange={handleChange}
         ></textarea>
 
-        {/* Theme Selection as checkboxes using availableThemes from Firebase */}
-        <label style={labelStyleCSS}>Theme of the Week</label>
+        {/* Daily Theme Selection */}
+        <label style={labelStyleCSS}>Theme of the Day</label>
         <div style={{ marginBottom: '15px' }}>
           {availableThemes.length > 0 ? (
             availableThemes.map(option => (

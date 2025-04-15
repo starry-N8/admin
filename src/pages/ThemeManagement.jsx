@@ -15,7 +15,7 @@ const ThemeManagement = () => {
   const styles = {
     container: {
       padding: '20px',
-      fontFamily: '"Comic Sans MS", cursive, sans-serif',
+      fontFamily: '"Inter, Arial, sans-serif',
       background: 'linear-gradient(135deg, #ffecd2, #fcb69f)',
       minHeight: '100vh',
     },

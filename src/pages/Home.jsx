@@ -30,10 +30,11 @@ const Home = () => {
 
   const markedCount = Object.keys(attendanceData).length;
 
+  // Updated UI styles
   const styles = {
     container: {
       padding: '20px',
-      fontFamily: 'Comic Sans MS, cursive, sans-serif',
+      fontFamily: 'Inter, Arial, sans-serif',
       background: 'linear-gradient(135deg, #ffecd2, #fcb69f)',
       minHeight: '100vh',
     },
@@ -42,6 +43,12 @@ const Home = () => {
       justifyContent: 'space-between',
       alignItems: 'center',
       marginBottom: '20px',
+    },
+    title: {
+      margin: 0,
+      color: '#d62828',
+      fontSize: '24px',
+      fontWeight: '700',
     },
     dateText: {
       fontSize: '16px',
@@ -71,28 +78,33 @@ const Home = () => {
       marginTop: '10px',
       fontStyle: 'italic',
     },
-    dailyUpdatesBox: {
-      backgroundColor: '#fffbee',
-      padding: '20px',
-      borderRadius: '10px',
-      textAlign: 'center',
-      fontSize: '20px',
-      fontWeight: 'bold',
-      color: '#d62828',
+    twoBoxesContainer: {
+      display: 'flex',
+      justifyContent: 'center',
+      gap: '20px',
       marginBottom: '20px',
+    },
+    boxOrange: {
+      backgroundColor: '#E67E22',
+      color: '#fff',
+      padding: '20px',
+      width: '140px',
+      textAlign: 'center',
+      fontWeight: 'bold',
+      fontSize: '16px',
+      borderRadius: '8px',
       cursor: 'pointer',
     },
-    manageButton: {
-      padding: '10px 16px',
-      borderRadius: '6px',
-      border: 'none',
-      backgroundColor: '#0077b6',
+    boxYellow: {
+      backgroundColor: '#F1C40F',
       color: '#fff',
-      fontWeight: 'bold',
-      cursor: 'pointer',
+      padding: '20px',
+      width: '140px',
       textAlign: 'center',
-      display: 'block',
-      margin: '0 auto 20px auto'
+      fontWeight: 'bold',
+      fontSize: '16px',
+      borderRadius: '8px',
+      cursor: 'pointer',
     },
     attendanceSection: {
       backgroundColor: '#ffffff',
@@ -125,27 +137,18 @@ const Home = () => {
       display: 'flex',
       gap: '8px',
     },
+    // Base style for both buttons (grey background by default)
     button: {
       padding: '6px 10px',
       borderRadius: '4px',
       border: 'none',
-      cursor: 'pointer',
-      fontWeight: 'bold',
-      transition: 'background 0.3s',
       fontSize: '14px',
+      fontWeight: 'bold',
+      cursor: 'pointer',
+      backgroundColor: '#ccc',
+      color: '#333',
+      transition: 'background-color 0.3s ease',
     },
-    presentButton: {
-      backgroundColor: '#90be6d',
-      color: '#fff',
-    },
-    absentButton: {
-      backgroundColor: '#f94144',
-      color: '#fff',
-    },
-    disabledButton: {
-      opacity: 0.6,
-      cursor: 'default',
-    }
   };
 
   // Load kids from Firestore.
@@ -162,7 +165,7 @@ const Home = () => {
     }
   };
 
-  // Load both theme (week) and themeOfTheDay from Firebase.
+  // Load theme settings from Firebase.
   const loadThemesFromFirebase = async () => {
     try {
       const themeDocRef = doc(db, 'appConfig', 'themeOfTheWeek');
@@ -173,7 +176,7 @@ const Home = () => {
           if (Array.isArray(data.theme)) {
             setThemeTags(data.theme);
           } else if (typeof data.theme === 'string') {
-            setThemeTags(data.theme.split(',').map(tag => tag.trim()));
+            setThemeTags(data.theme.split(',').map((tag) => tag.trim()));
           }
         }
         if (data.themeOfTheDay) {
@@ -188,8 +191,16 @@ const Home = () => {
   const fetchAttendance = async () => {
     try {
       const today = new Date();
-      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+      const startOfDay = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate()
+      );
+      const endOfDay = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate() + 1
+      );
       const attendanceQuery = query(
         collection(db, 'attendance'),
         where('date', '>=', startOfDay),
@@ -213,8 +224,16 @@ const Home = () => {
   const fetchDailyReports = async () => {
     try {
       const today = new Date();
-      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+      const startOfDay = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate()
+      );
+      const endOfDay = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate() + 1
+      );
       const reportsQuery = query(
         collection(db, 'dailyReports'),
         where('date', '>=', startOfDay),
@@ -243,13 +262,17 @@ const Home = () => {
     if (dailyReportsMapping[kidName]) {
       alert(`Daily report for ${kidName} has already been submitted.`);
     } else {
-      // Pass themeOfTheDay as a query parameter.
-      navigate(`/daily-report?child=${encodeURIComponent(kidName)}&themeOfTheDay=${encodeURIComponent(dayThemes.join(', '))}`);
+      navigate(
+        `/daily-report?child=${encodeURIComponent(kidName)}&themeOfTheDay=${encodeURIComponent(dayThemes.join(', '))}`
+      );
     }
   };
 
+  /**
+   * Mark or update attendance for a kid.
+   * Clicking a button updates Firestore with the new status.
+   */
   const markAttendance = async (kidName, status) => {
-    if (attendanceData[kidName]) return;
     const now = new Date();
     const dateString = now.toLocaleString('en-US', {
       year: 'numeric',
@@ -259,9 +282,15 @@ const Home = () => {
       minute: '2-digit',
       hour12: true,
     });
-    const timeHHMM = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const timeHHMM = `${now.getHours().toString().padStart(2, '0')}:${now
+      .getMinutes()
+      .toString()
+      .padStart(2, '0')}`;
     const updatedRecord = { status, time: timeHHMM, markedAt: dateString };
+
+    // Update local state.
     setAttendanceData((prev) => ({ ...prev, [kidName]: updatedRecord }));
+
     try {
       if (docId) {
         const attendanceRef = doc(db, 'attendance', docId);
@@ -288,7 +317,8 @@ const Home = () => {
     year: 'numeric',
   });
 
-  const progressPercentage = kids.length > 0 ? (markedCount / kids.length) * 100 : 0;
+  const progressPercentage =
+    kids.length > 0 ? (markedCount / kids.length) * 100 : 0;
 
   useEffect(() => {
     loadKidsInfo();
@@ -300,7 +330,7 @@ const Home = () => {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <h2 style={{ margin: 0, color: '#d62828' }}>Wednesday</h2>
+        <h2 style={styles.title}>Wednesday</h2>
         <span style={styles.dateText}>{todayDateString}</span>
       </header>
 
@@ -310,76 +340,93 @@ const Home = () => {
           {markedCount}/{kids.length} Done
         </p>
         <div style={styles.progressBarOuter}>
-          <div style={{ ...styles.progressBarInner, width: `${progressPercentage}%` }} />
+          <div
+            style={{ ...styles.progressBarInner, width: `${progressPercentage}%` }}
+          />
         </div>
         <p style={styles.themeLine}>
-          <StarIcon />
-          Theme of the week: {themeTags.join(', ')}
+          <StarIcon /> Theme of the week: {themeTags.join(', ')}
         </p>
         <p style={styles.themeLine}>
-          <StarIcon />
-          Theme of the day: {dayThemes.join(', ')}
+          <StarIcon /> Theme of the day: {dayThemes.join(', ')}
         </p>
       </div>
 
-      <div style={styles.dailyUpdatesBox} onClick={() => {
-          navigate(`/daily-report?themeOfTheDay=${encodeURIComponent(dayThemes.join(', '))}`);
-      }}>
-        Go to Daily Updates
-      </div>
-
-      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-        <button style={styles.manageButton} onClick={() => navigate('/theme-management')}>
-          Manage Theme Tags
-        </button>
+      {/* Two boxes for Daily Updates and Manage Theme */}
+      <div style={styles.twoBoxesContainer}>
+        <div
+          style={styles.boxOrange}
+          onClick={() =>
+            navigate(
+              `/daily-report?themeOfTheDay=${encodeURIComponent(dayThemes.join(', '))}`
+            )
+          }
+        >
+          Daily Updates
+        </div>
+        <div
+          style={styles.boxYellow}
+          onClick={() => navigate('/theme-management')}
+        >
+          Manage Theme
+        </div>
       </div>
 
       <div style={styles.attendanceSection}>
-        {kids.map((kid) => (
-          <div key={kid.id} style={styles.kidRow}>
-            <div style={styles.rowTop}>
-              <span
-                style={{
-                  ...styles.kidName,
-                  color: attendanceData[kid.name]?.status === 'present' ? '#0077b6' : '#555',
-                }}
-                onClick={() => handleKidClick(kid.name)}
-              >
-                {kid.name}
-                {dailyReportsMapping[kid.name] && <span style={styles.tickIcon}>✓</span>}
-              </span>
-              <div style={styles.buttonGroup}>
-                <button
+        {kids.map((kid) => {
+          // Determine the styling for the "Present" and "Absent" buttons
+          const currentStatus = attendanceData[kid.name]?.status;
+          const presentStyle = {
+            ...styles.button,
+            backgroundColor:
+              currentStatus === 'present' ? '#90be6d' : '#ccc',
+            color: currentStatus === 'present' ? '#fff' : '#333',
+          };
+          const absentStyle = {
+            ...styles.button,
+            backgroundColor: currentStatus === 'absent' ? '#f94144' : '#ccc',
+            color: currentStatus === 'absent' ? '#fff' : '#333',
+          };
+
+          return (
+            <div key={kid.id} style={styles.kidRow}>
+              <div style={styles.rowTop}>
+                <span
                   style={{
-                    ...styles.button,
-                    ...styles.presentButton,
-                    ...(attendanceData[kid.name] ? styles.disabledButton : {}),
+                    ...styles.kidName,
+                    color:
+                      currentStatus === 'present' ? '#0077b6' : '#555',
                   }}
-                  onClick={() => markAttendance(kid.name, 'present')}
-                  disabled={!!attendanceData[kid.name]}
+                  onClick={() => handleKidClick(kid.name)}
                 >
-                  Present
-                </button>
-                <button
-                  style={{
-                    ...styles.button,
-                    ...styles.absentButton,
-                    ...(attendanceData[kid.name] ? styles.disabledButton : {}),
-                  }}
-                  onClick={() => markAttendance(kid.name, 'absent')}
-                  disabled={!!attendanceData[kid.name]}
-                >
-                  Absent
-                </button>
+                  {kid.name}
+                  {dailyReportsMapping[kid.name] && (
+                    <span style={styles.tickIcon}>✓</span>
+                  )}
+                </span>
+                <div style={styles.buttonGroup}>
+                  <button
+                    style={presentStyle}
+                    onClick={() => markAttendance(kid.name, 'present')}
+                  >
+                    Present
+                  </button>
+                  <button
+                    style={absentStyle}
+                    onClick={() => markAttendance(kid.name, 'absent')}
+                  >
+                    Absent
+                  </button>
+                </div>
               </div>
+              {attendanceData[kid.name] && (
+                <div style={{ marginTop: '5px', fontSize: '13px', color: '#444' }}>
+                  {`${kid.name} marked ${attendanceData[kid.name].status.toUpperCase()} on ${attendanceData[kid.name].markedAt}.`}
+                </div>
+              )}
             </div>
-            {attendanceData[kid.name] && (
-              <div style={{ marginTop: '5px', fontSize: '13px', color: '#444' }}>
-                {`${kid.name} marked ${attendanceData[kid.name].status.toUpperCase()} on ${attendanceData[kid.name].markedAt}.`}
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
