@@ -30,7 +30,7 @@ const Home = () => {
 
   const markedCount = Object.keys(attendanceData).length;
 
-  // Updated UI styles
+  // Updated UI styles including a new style for Report box.
   const styles = {
     container: {
       padding: '20px',
@@ -83,6 +83,7 @@ const Home = () => {
       justifyContent: 'center',
       gap: '20px',
       marginBottom: '20px',
+      // flexWrap: 'wrap',
     },
     boxOrange: {
       backgroundColor: '#E67E22',
@@ -97,6 +98,17 @@ const Home = () => {
     },
     boxYellow: {
       backgroundColor: '#F1C40F',
+      color: '#fff',
+      padding: '20px',
+      width: '140px',
+      textAlign: 'center',
+      fontWeight: 'bold',
+      fontSize: '16px',
+      borderRadius: '8px',
+      cursor: 'pointer',
+    },
+    boxBlue: {
+      backgroundColor: '#4e342e',
       color: '#fff',
       padding: '20px',
       width: '140px',
@@ -137,7 +149,6 @@ const Home = () => {
       display: 'flex',
       gap: '8px',
     },
-    // Base style for both buttons (grey background by default)
     button: {
       padding: '6px 10px',
       borderRadius: '4px',
@@ -352,7 +363,7 @@ const Home = () => {
         </p>
       </div>
 
-      {/* Two boxes for Daily Updates and Manage Theme */}
+      {/* Navigation Boxes for Daily Updates, Manage Theme, and Report */}
       <div style={styles.twoBoxesContainer}>
         <div
           style={styles.boxOrange}
@@ -369,6 +380,12 @@ const Home = () => {
           onClick={() => navigate('/theme-management')}
         >
           Manage Theme
+        </div>
+        <div
+          style={styles.boxBlue}
+          onClick={() => navigate('/report')}
+        >
+          View Report
         </div>
       </div>
 
