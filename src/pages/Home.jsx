@@ -1,6 +1,7 @@
 // src/pages/Home.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import giraffeIcon from '../assets/Logo.png';
 import {
   collection,
   query,
@@ -46,7 +47,7 @@ const Home = () => {
     },
     title: {
       margin: 0,
-      color: '#d62828',
+      color: '#555',
       fontSize: '24px',
       fontWeight: '700',
     },
@@ -341,12 +342,18 @@ const Home = () => {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <h2 style={styles.title}>Wednesday</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <img
+            src={giraffeIcon}
+            alt="Giraffe"
+            style={{ width: '70px', height: '70px' }}
+          />
+        </div>
         <span style={styles.dateText}>{todayDateString}</span>
       </header>
 
       <div style={styles.attendanceSummary}>
-        <h3 style={{ margin: 0 }}>Today Attendance</h3>
+        <h3 style={{ margin: 0 }}>Today's Attendance</h3>
         <p style={{ margin: '5px 0 0' }}>
           {markedCount}/{kids.length} Done
         </p>
@@ -438,7 +445,7 @@ const Home = () => {
               </div>
               {attendanceData[kid.name] && (
                 <div style={{ marginTop: '5px', fontSize: '13px', color: '#444' }}>
-                  {`${kid.name} marked ${attendanceData[kid.name].status.toUpperCase()} on ${attendanceData[kid.name].markedAt}.`}
+                  {`Marked ${attendanceData[kid.name].status.toUpperCase()} at ${new Date(attendanceData[kid.name].markedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`}
                 </div>
               )}
             </div>
