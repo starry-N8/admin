@@ -312,7 +312,7 @@ const Report = () => {
               </label>
             ))}
           </div>
-          <label style={styles.label}>No. of Poops</label>
+          <label style={styles.label}>Bowel movements</label>
           <div style={styles.radioGroup}>
             {radioOptions.map(opt => (
               <label key={opt} style={{ marginRight: '10px', fontWeight: '500' }}><input type="radio" name="poops" value={String(opt)} onChange={handleRadioChange} checked={formData.poops === String(opt)} required />{opt}
