@@ -386,7 +386,7 @@ const Home = () => {
           style={styles.boxYellow}
           onClick={() => navigate('/theme-management')}
         >
-          Manage Theme
+          Theme & Note
         </div>
         <div
           style={styles.boxBlue}
