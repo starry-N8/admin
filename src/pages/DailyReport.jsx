@@ -511,7 +511,7 @@ const DailyReport = () => {
         <label style={labelStyleCSS}>Diaper Changes</label>
         <div style={{ marginBottom: '15px' }}>
           {radioOptions.map(opt => (
-            <label key={opt} style={{ marginRight: '10px', fontWeight: '500' }}>
+            <label key={opt} style={{ marginRight: '20px', fontWeight: '500' }}>
               <input
                 type="radio"
                 name="diaperChanges"
@@ -526,10 +526,10 @@ const DailyReport = () => {
         </div>
 
         {/* Number of Poops */}
-        <label style={labelStyleCSS}>No. of Poops</label>
-        <div style={{ marginBottom: '15px' }}>
+        <label style={labelStyleCSS}>Bowel movements</label>
+        <div style={{ marginBottom: '20px' }}>
           {radioOptions.map(opt => (
-            <label key={opt} style={{ marginRight: '10px', fontWeight: '500' }}>
+            <label key={opt} style={{ marginRight: '20px', fontWeight: '500' }}>
               <input
                 type="radio"
                 name="poops"
@@ -545,9 +545,9 @@ const DailyReport = () => {
 
         {/* Child was Feeling */}
         <label style={labelStyleCSS}>Child was Feeling</label>
-        <div style={{ marginBottom: '15px' }}>
+        <div style={{ marginBottom: '20px' }}>
           {feelingsOptions.map(option => (
-            <label key={option.label} style={{ fontWeight: '500', fontSize: '14px', marginRight: '10px' }}>
+            <label key={option.label} style={{ fontWeight: '500', fontSize: '14px', marginRight: '20px' }}>
               <input
                 type="checkbox"
                 name="feelings"
@@ -560,20 +560,10 @@ const DailyReport = () => {
           ))}
         </div>
 
-        {/* Teacher's Note */}
-        <label style={labelStyleCSS}>Teacher's Note</label>
-        <textarea
-          name="notes"
-          rows="3"
-          placeholder="Enter any additional notes here..."
-          style={inputStyleCSSText}
-          value={formData.notes}
-          onChange={handleChange}
-        ></textarea>
 
         {/* Daily Theme Selection */}
         <label style={labelStyleCSS}>Theme of the Day</label>
-        <div style={{ marginBottom: '15px' }}>
+        <div style={{ marginBottom: '20px' }}>
           {availableThemes.length > 0 ? (
             availableThemes.map(option => (
               <label key={option} style={{ fontWeight: '500', fontSize: '14px', marginRight: '10px' }}>
@@ -591,6 +581,18 @@ const DailyReport = () => {
             <p>No themes available</p>
           )}
         </div>
+
+
+        {/* Teacher's Note */}
+        <label style={labelStyleCSS}>Teacher's Note</label>
+        <textarea
+          name="notes"
+          rows="3"
+          placeholder="Enter any additional notes here..."
+          style={inputStyleCSSText}
+          value={formData.notes}
+          onChange={handleChange}
+        ></textarea>
 
         <button type="submit" style={buttonStyle}>Update</button>
       </form>
