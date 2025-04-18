@@ -526,11 +526,11 @@ const DailyReport = () => {
         {/* Show Common Parents Note only if it's prefilled */}
         {formData.commonParentsNote && (
           <div style={{ marginBottom:'20px' }}>
-            <label style={labelStyle}>Common Parents Note</label>
+            <label style={labelStyle}>Common Note for Parents</label>
             <textarea
               name="commonParentsNote"
               rows="3"
-              placeholder="Common note for parents (you can edit)"
+              placeholder="Common note for parents"
               style={textStyle}
               value={formData.commonParentsNote}
               onChange={handleChange}

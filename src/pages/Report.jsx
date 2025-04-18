@@ -348,7 +348,7 @@ const Report = () => {
 
           {/* Common Parents Note */}
           <div style={{ marginBottom: '20px' }}>
-            <label style={styles.label}>Common Parents Note</label>
+            <label style={styles.label}>Common Note for Parents</label>
             <textarea name="commonParentsNote" rows="3" style={styles.input} value={formData.commonParentsNote} onChange={handleChange} placeholder="Common note for parents" />
           </div>
 

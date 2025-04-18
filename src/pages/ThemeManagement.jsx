@@ -262,7 +262,7 @@ const ThemeManagement = () => {
 
       {/* Common Parents Note */}
       <div style={styles.section}>
-        <h2 style={styles.sectionTitle}>Common Parents Note</h2>
+        <h2 style={styles.sectionTitle}>Common Note for Parents</h2>
         <textarea
           style={styles.noteTextarea}
           placeholder="This note will appear on every Daily Report"
