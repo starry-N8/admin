@@ -201,9 +201,10 @@ const Report = () => {
     reportBox: { width: '150px', height: '150px', backgroundColor: '#fffbee', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)', cursor: 'pointer', textAlign: 'center' },
     formContainer: { backgroundColor: '#fffbee', padding: '30px', borderRadius: '15px', boxShadow: '0 8px 16px rgba(0,0,0,0.1)', maxWidth: '700px', margin: '0 auto' },
     label: { fontWeight: '600', marginBottom: '5px', display: 'block' },
-    input: { width: '100%', padding: '12px', marginBottom: '15px', borderRadius: '8px', border: '1px solid #ffc107', fontSize: '15px', outline: 'none' },
+    input: { width: '95%', padding: '12px', marginBottom: '15px', borderRadius: '8px', border: '1px solid #ffc107', fontSize: '15px', outline: 'none' },
+    inputTime: { width: '90%', padding: '12px', marginBottom: '15px', borderRadius: '8px', border: '1px solid #ffc107', fontSize: '15px', outline: 'none' },
     radioGroup: { display: 'flex', gap: '10px', marginBottom: '15px' },
-    inlineContainer: { display: 'flex', gap: '40px', marginBottom: '15px' },
+    inlineContainer: { display: 'flex', gap: '30px', marginBottom: '15px' },
     button: { width: '100%', background: '#fcb69f', color: '#4e342e', fontWeight: '600', fontSize: '16px', padding: '15px', border: 'none', borderRadius: '30px', cursor: 'pointer', marginBottom: '10px' },
     backButton: { backgroundColor: '#A62C2C', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'block', margin: '20px auto 0' }
   };
@@ -269,11 +270,11 @@ const Report = () => {
           <div style={styles.inlineContainer}>
             <div style={{ flex: 1 }}>
               <label style={{ fontSize: '14px', fontWeight: '500' }}>In</label>
-              <input type="time" name="inTime" style={styles.input} required value={formData.inTime} onChange={handleChange} />
+              <input type="time" name="inTime" style={styles.inputTime} required value={formData.inTime} onChange={handleChange} />
             </div>
             <div style={{ flex: 1 }}>
               <label style={{ fontSize: '14px', fontWeight: '500' }}>Out</label>
-              <input type="time" name="outTime" style={styles.input} required value={formData.outTime} onChange={handleChange} />
+              <input type="time" name="outTime" style={styles.inputTime} required value={formData.outTime} onChange={handleChange} />
             </div>
           </div>
           <label style={styles.label}>Child ate Snacks</label>
@@ -297,11 +298,11 @@ const Report = () => {
           <div style={styles.inlineContainer}>
             <div style={{ flex: 1 }}>
               <label style={{ fontSize: '14px', fontWeight: '500' }}>From</label>
-              <input type="time" name="sleepFrom" style={styles.input} value={formData.sleepFrom} onChange={handleChange} disabled={formData.sleepNot} required={!formData.sleepNot} />
+              <input type="time" name="sleepFrom" style={styles.inputTime} value={formData.sleepFrom} onChange={handleChange} disabled={formData.sleepNot} required={!formData.sleepNot} />
             </div>
             <div style={{ flex: 1 }}>
               <label style={{ fontSize: '14px', fontWeight: '500' }}>To</label>
-              <input type="time" name="sleepTo" style={styles.input} value={formData.sleepTo} onChange={handleChange} disabled={formData.sleepNot} required={!formData.sleepNot} />
+              <input type="time" name="sleepTo" style={styles.inputTime} value={formData.sleepTo} onChange={handleChange} disabled={formData.sleepNot} required={!formData.sleepNot} />
             </div>
           </div>
           <label style={styles.label}>Diaper Changes</label>

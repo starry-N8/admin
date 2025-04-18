@@ -276,13 +276,18 @@ const DailyReport = () => {
     borderRadius: '8px', border: '1px solid #ffc107',
     fontSize: '15px', outline: 'none'
   };
-  const textStyle = { ...inputStyle, width: '95%' };
+  const inputStyleTime = {
+    width: '84%', padding: '12px', marginBottom: '15px',
+    borderRadius: '8px', border: '1px solid #ffc107',
+    fontSize: '15px', outline: 'none'
+  };
+  const textStyle = { ...inputStyle, width: '92%' };
   const buttonStyle = {
     width: '100%', background: '#fcb69f', color: '#4e342e',
     fontWeight: '600', fontSize: '16px', padding: '15px',
     border: 'none', borderRadius: '30px', cursor: 'pointer'
   };
-  const rowStyle = { display: 'flex', gap: '35px', marginBottom: '15px' };
+  const rowStyle = { display: 'flex', gap: '30px', marginBottom: '15px' };
   const colStyle = { flex: 1, display: 'flex', flexDirection: 'column' };
 
   // Filter children dropdown
@@ -331,7 +336,7 @@ const DailyReport = () => {
             <input
               type="time"
               name="inTime"
-              style={inputStyle}
+              style={inputStyleTime}
               required
               value={formData.inTime}
               onChange={handleChange}
@@ -342,7 +347,7 @@ const DailyReport = () => {
             <input
               type="time"
               name="outTime"
-              style={inputStyle}
+              style={inputStyleTime}
               required
               value={formData.outTime}
               onChange={handleChange}
@@ -401,7 +406,7 @@ const DailyReport = () => {
             <input
               type="time"
               name="sleepFrom"
-              style={inputStyle}
+              style={inputStyleTime}
               disabled={formData.sleepNot}
               required={!formData.sleepNot}
               value={formData.sleepFrom}
@@ -413,7 +418,7 @@ const DailyReport = () => {
             <input
               type="time"
               name="sleepTo"
-              style={inputStyle}
+              style={inputStyleTime}
               disabled={formData.sleepNot}
               required={!formData.sleepNot}
               value={formData.sleepTo}
