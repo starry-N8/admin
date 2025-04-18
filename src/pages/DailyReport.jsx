@@ -16,20 +16,11 @@ const DailyReport = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Get query parameters
+  // Query param
   const searchParams = new URLSearchParams(location.search);
   const childFromParam = searchParams.get('child') || '';
 
-  // State for kids info and email
-  const [kidsInfo, setKidsInfo] = useState([]);
-  const [kidEmail, setKidEmail] = useState('');
-
-  // State for available themes fetched from Firebase.
-  // These themes are used both to show the checkboxes and to determine the daily themes.
-  const [availableThemes, setAvailableThemes] = useState([]);
-
-  // Form state for the daily report.
-  // The "themes" field holds the daily theme selection.
+  // Form state, now including commonParentsNote
   const [formData, setFormData] = useState({
     childName: childFromParam,
     inTime: '',
@@ -43,229 +34,201 @@ const DailyReport = () => {
     poops: '',
     feelings: [],
     notes: '',
-    themes: [], // daily theme checkboxes
+    themes: [],
     email: '',
+    ouch: false,
+    ouchReport: '',
+    commonParentsNote: '',
   });
 
-  // Attendance and report tracking state.
+  // Other states
+  const [kidsInfo, setKidsInfo] = useState([]);
+  const [kidEmail, setKidEmail] = useState('');
+  const [availableThemes, setAvailableThemes] = useState([]);
   const [presentChildren, setPresentChildren] = useState({});
   const [reportedChildren, setReportedChildren] = useState([]);
 
-  // Feelings options with emojis.
+  // Feelings options
   const feelingsOptions = [
     { label: 'Happy', emoji: '😊' },
     { label: 'Sad', emoji: '😢' },
     { label: 'Restless', emoji: '😕' },
     { label: 'Quiet', emoji: '😌' },
     { label: 'Playful', emoji: '😜' },
-    { label: 'Sick', emoji: '🤒' }
+    { label: 'Sick', emoji: '🤒' },
   ];
+  const radioOptions = [0,1,2,3,4];
 
-  // Radio options for Diaper Changes and Poops.
-  const radioOptions = [0, 1, 2, 3, 4];
+  // Today’s local string
+  const todayStr = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  })();
 
-  // Memoize today's start and end of day.
   const { startOfDay, endOfDay } = useMemo(() => {
-    const today = new Date();
+    const d = new Date();
     return {
-      startOfDay: new Date(today.getFullYear(), today.getMonth(), today.getDate()),
-      endOfDay: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
+      startOfDay: new Date(d.getFullYear(), d.getMonth(), d.getDate()),
+      endOfDay:   new Date(d.getFullYear(), d.getMonth(), d.getDate()+1),
     };
   }, []);
 
-  // --- Fetch available themes from Firebase ---
+  // --- Load config (themes + today's commonParentsNote) ---
   useEffect(() => {
-    const fetchThemes = async () => {
+    const loadConfig = async () => {
       try {
-        const themeDocRef = doc(db, 'appConfig', 'themeOfTheWeek');
-        const snapshot = await getDoc(themeDocRef);
-        if (snapshot.exists()) {
-          const data = snapshot.data();
-          let themes = [];
-          if (Array.isArray(data.theme)) {
-            themes = data.theme;
-          } else if (typeof data.theme === 'string' && data.theme.trim().length > 0) {
-            themes = data.theme.split(',').map(tag => tag.trim());
-          }
-          setAvailableThemes(themes);
-          // Pre-select daily themes if available (optional)
-          if (data.themeOfTheDay && Array.isArray(data.themeOfTheDay)) {
-            setFormData(prev => ({
-              ...prev,
-              themes: data.themeOfTheDay
-            }));
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching themes from Firebase:', error);
-      }
-    };
-    fetchThemes();
-  }, []);
+        const cfg = await getDoc(doc(db, 'appConfig', 'themeOfTheWeek'));
+        if (!cfg.exists()) return;
+        const data = cfg.data();
 
-  // --- Load kids info from "kidsInfo" collection ---
-  useEffect(() => {
-    const loadKidsInfo = async () => {
-      try {
-        const kidsSnapshot = await getDocs(collection(db, 'kidsInfo'));
-        const kidsList = kidsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data() // expected fields: name, email, etc.
+        setAvailableThemes(data.theme || []);
+        setFormData(f => ({
+          ...f,
+          themes: Array.isArray(data.themeOfTheDay) ? data.themeOfTheDay : f.themes,
+          commonParentsNote:
+            data.commonParentsNoteDate === todayStr
+              ? data.commonParentsNote || ''
+              : ''
         }));
-        setKidsInfo(kidsList);
-      } catch (error) {
-        console.error('Error fetching kids info:', error);
+      } catch (err) {
+        console.error('Error loading config:', err);
       }
     };
-    loadKidsInfo();
+    loadConfig();
+  }, [todayStr]);
+
+  // --- Load kids info ---
+  useEffect(() => {
+    const loadKids = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'kidsInfo'));
+        setKidsInfo(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    loadKids();
   }, []);
 
-  // --- Fetch today's attendance data (present kids) ---
+  // --- Load attendance ---
   useEffect(() => {
-    const fetchAttendance = async () => {
-      try {
-        const attendanceQuery = query(
-          collection(db, 'attendance'),
-          where('date', '>=', startOfDay),
-          where('date', '<', endOfDay)
-        );
-        const snapshot = await getDocs(attendanceQuery);
-        let tempPresent = {};
-        snapshot.forEach(docSnap => {
-          const data = docSnap.data();
-          if (data && data.attendance) {
-            Object.entries(data.attendance).forEach(([kidName, record]) => {
-              if (record.status === 'present') {
-                tempPresent[kidName] = record;
-              }
-            });
-          }
-        });
-        setPresentChildren(tempPresent);
-      } catch (error) {
-        console.error('Error fetching attendance:', error);
-      }
+    const loadAtt = async () => {
+      const q = query(
+        collection(db, 'attendance'),
+        where('date', '>=', startOfDay),
+        where('date', '<', endOfDay)
+      );
+      const snap = await getDocs(q);
+      const pres = {};
+      snap.forEach(doc => {
+        const d = doc.data();
+        if (d.attendance) {
+          Object.entries(d.attendance)
+            .filter(([,r]) => r.status==='present')
+            .forEach(([name,r]) => pres[name]=r);
+        }
+      });
+      setPresentChildren(pres);
     };
-    fetchAttendance();
+    loadAtt();
   }, [startOfDay, endOfDay]);
 
-  // --- Fetch today's submitted daily reports ---
+  // --- Load existing daily reports to block duplicates ---
   useEffect(() => {
-    const fetchDailyReports = async () => {
-      try {
-        const reportsQuery = query(
-          collection(db, 'dailyReports'),
-          where('date', '>=', startOfDay),
-          where('date', '<', endOfDay)
-        );
-        const snapshot = await getDocs(reportsQuery);
-        const reportedNames = snapshot.docs.map(doc => doc.data().childName);
-        setReportedChildren(reportedNames);
-      } catch (error) {
-        console.error('Error fetching daily reports:', error);
-      }
+    const loadReports = async () => {
+      const q = query(
+        collection(db, 'dailyReports'),
+        where('date','>=',startOfDay),
+        where('date','<', endOfDay)
+      );
+      const snap = await getDocs(q);
+      setReportedChildren(snap.docs.map(d => d.data().childName));
     };
-    fetchDailyReports();
+    loadReports();
   }, [startOfDay, endOfDay]);
 
-  // --- Update kidEmail when childName changes ---
+  // --- Auto‑fill email when childName changes ---
   useEffect(() => {
-    if (formData.childName && kidsInfo.length > 0) {
-      const kid = kidsInfo.find(k => k.name === formData.childName);
-      if (kid) {
-        setKidEmail(kid.email);
-        setFormData(prev => ({ ...prev, email: kid.email }));
-      } else {
-        setKidEmail('');
-        setFormData(prev => ({ ...prev, email: '' }));
-      }
-    }
+    if (!formData.childName || !kidsInfo.length) return;
+    const kid = kidsInfo.find(k => k.name===formData.childName);
+    setKidEmail(kid?.email || '');
+    setFormData(f => ({ ...f, email: kid?.email || '' }));
   }, [formData.childName, kidsInfo]);
 
-  // --- Auto-populate inTime from attendance ---
+  // --- Auto‑fill inTime from attendance ---
   useEffect(() => {
-    if (formData.childName && presentChildren[formData.childName]?.time) {
-      const time = presentChildren[formData.childName].time;
-      setFormData(prev => ({ ...prev, inTime: time }));
+    const rec = presentChildren[formData.childName];
+    if (rec?.time) {
+      setFormData(f => ({ ...f, inTime: rec.time }));
     }
   }, [formData.childName, presentChildren]);
 
-  // --- Handler for generic input changes ---
-  const handleChange = (e) => {
+  // --- Generic handler ---
+  const handleChange = e => {
     const { name, value, type, checked } = e.target;
-    if (type === 'checkbox' && name === 'sleepNot') {
-      setFormData(prev => ({
-        ...prev,
-        sleepNot: checked,
-        sleepFrom: '',
-        sleepTo: ''
+    if (type==='checkbox' && name==='sleepNot') {
+      setFormData(f => ({ ...f, sleepNot: checked, sleepFrom:'', sleepTo:'' }));
+    }
+    else if (type==='checkbox' && name==='feelings') {
+      setFormData(f => ({
+        ...f,
+        feelings: f.feelings.includes(value)
+          ? f.feelings.filter(x=>x!==value)
+          : [...f.feelings, value]
       }));
-    } else if (type === 'checkbox' && name === 'feelings') {
-      if (formData.feelings.includes(value)) {
-        setFormData(prev => ({
-          ...prev,
-          feelings: prev.feelings.filter(f => f !== value)
-        }));
-      } else {
-        setFormData(prev => ({ ...prev, feelings: [...prev.feelings, value] }));
-      }
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+    else if (type==='checkbox' && name==='ouch') {
+      setFormData(f => ({
+        ...f,
+        ouch: checked,
+        ouchReport: checked ? f.ouchReport : ''
+      }));
+    }
+    else {
+      setFormData(f => ({ ...f, [name]: value }));
     }
   };
 
-  // --- Handler for daily theme checkbox changes ---
-  const handleThemeCheckboxChange = (option) => {
-    if (formData.themes.includes(option)) {
-      setFormData(prev => ({
-        ...prev,
-        themes: prev.themes.filter(t => t !== option)
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        themes: [...prev.themes, option]
-      }));
-    }
+  // Theme‑of‑day toggles
+  const handleThemeCheckboxChange = opt => {
+    setFormData(f => ({
+      ...f,
+      themes: f.themes.includes(opt)
+        ? f.themes.filter(x=>x!==opt)
+        : [...f.themes,opt]
+    }));
   };
 
-  // Helper function to convert 24-hour time ("HH:MM") to 12-hour format with AM/PM.
-  const convertTimeTo12Hour = (timeStr) => {
-    if (!timeStr) return '';
-    const [hour, minute] = timeStr.split(':');
-    let hr = parseInt(hour, 10);
-    const ampm = hr >= 12 ? 'PM' : 'AM';
-    hr = hr % 12 || 12;
-    return `${hr.toString().padStart(2, '0')}:${minute} ${ampm}`;
+  // Time formatter
+  const convertTimeTo12Hour = ts => {
+    if (!ts) return '';
+    const [h,m] = ts.split(':').map(Number);
+    const ap = h>=12?'PM':'AM';
+    const hr = h%12||12;
+    return `${String(hr).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ap}`;
   };
 
-  // --- Handle daily report submission ---
-  const handleSubmit = async (e) => {
+  // --- Submit ---
+  const handleSubmit = async e => {
     e.preventDefault();
-
-    // Convert times to 12-hour format including AM/PM
-    const formattedInTime = convertTimeTo12Hour(formData.inTime);
-    const formattedOutTime = convertTimeTo12Hour(formData.outTime);
-    const formattedSleepFrom = convertTimeTo12Hour(formData.sleepFrom);
-    const formattedSleepTo = convertTimeTo12Hour(formData.sleepTo);
-
-    // Exclude the "themes" field from formData and then include it as themeOfTheDay.
+    const formatted = {
+      inTime: convertTimeTo12Hour(formData.inTime),
+      outTime: convertTimeTo12Hour(formData.outTime),
+      sleepFrom: convertTimeTo12Hour(formData.sleepFrom),
+      sleepTo: convertTimeTo12Hour(formData.sleepTo),
+    };
     const { themes, ...rest } = formData;
     const reportData = {
       ...rest,
-      inTime: formattedInTime,
-      outTime: formattedOutTime,
-      sleepFrom: formattedSleepFrom,
-      sleepTo: formattedSleepTo,
-      // Send the selected daily themes under a single field "themeOfTheDay"
+      ...formatted,
       themeOfTheDay: themes,
       date: new Date()
     };
 
     try {
       await addDoc(collection(db, 'dailyReports'), reportData);
-      alert("Daily report submitted successfully!");
-      // Reset form
+      alert('Daily report submitted successfully!');
+      // reset
       setFormData({
         childName: '',
         inTime: '',
@@ -281,24 +244,25 @@ const DailyReport = () => {
         notes: '',
         themes: [],
         email: '',
+        ouch: false,
+        ouchReport: '',
+        commonParentsNote: '',
       });
-      setKidEmail('');
       navigate('/');
-    } catch (error) {
-      console.error("Error submitting daily report:", error);
-      alert("Error submitting daily report.");
+    } catch (err) {
+      console.error(err);
+      alert('Error submitting daily report.');
     }
   };
 
-  // Kid-friendly Styles (for the form section)
+  // Styles (same as before)...
   const containerStyle = {
     background: 'linear-gradient(135deg, #ffecd2, #fcb69f)',
     minHeight: '100vh',
     padding: '20px',
     fontFamily: 'Inter, Arial, sans-serif',
   };
-
-  const formStyleCSS = {
+  const formStyle = {
     background: '#fffbee',
     padding: '30px',
     borderRadius: '15px',
@@ -306,120 +270,79 @@ const DailyReport = () => {
     maxWidth: '600px',
     margin: '0 auto',
   };
-
-  const labelStyleCSS = {
-    fontWeight: '600',
-    marginBottom: '5px',
-    display: 'block',
+  const labelStyle = { fontWeight: '600', marginBottom: '5px', display: 'block' };
+  const inputStyle = {
+    width: '100%', padding: '12px', marginBottom: '15px',
+    borderRadius: '8px', border: '1px solid #ffc107',
+    fontSize: '15px', outline: 'none'
   };
-
-  const inputStyleCSS = {
-    width: '100%',
-    padding: '12px',
-    marginBottom: '15px',
-    borderRadius: '8px',
-    border: '1px solid #ffc107',
-    fontSize: '15px',
-    outline: 'none',
-  };
-
-  const inputStyleCSSText = {
-    width: '95%',
-    padding: '12px',
-    marginBottom: '15px',
-    borderRadius: '8px',
-    border: '1px solid #ffc107',
-    fontSize: '15px',
-    outline: 'none',
-  };
-
+  const textStyle = { ...inputStyle, width: '95%' };
   const buttonStyle = {
-    width: '100%',
-    background: '#fcb69f',
-    color: '#4e342e',
-    fontWeight: '600',
-    fontSize: '16px',
-    padding: '15px',
-    border: 'none',
-    borderRadius: '30px',
-    cursor: 'pointer',
+    width: '100%', background: '#fcb69f', color: '#4e342e',
+    fontWeight: '600', fontSize: '16px', padding: '15px',
+    border: 'none', borderRadius: '30px', cursor: 'pointer'
   };
+  const rowStyle = { display: 'flex', gap: '35px', marginBottom: '15px' };
+  const colStyle = { flex: 1, display: 'flex', flexDirection: 'column' };
 
-  const sideBySideStyle = {
-    display: 'flex',
-    marginBottom: '15px',
-    marginRight: '25px',
-    gap: '35px'
-  };
-
-  const columnStyle = { flex: 1, display: 'flex', flexDirection: 'column' };
-
-  // Compute available children for dropdown (only present children that haven't reported today)
-  const availableChildren = Object.keys(presentChildren).filter(
-    kidName => !reportedChildren.includes(kidName)
-  );
+  // Filter children dropdown
+  const availableChildren = Object.keys(presentChildren)
+    .filter(n => !reportedChildren.includes(n));
 
   return (
     <div style={containerStyle}>
-      <form style={formStyleCSS} onSubmit={handleSubmit}>
+      <form style={formStyle} onSubmit={handleSubmit}>
         <h2 style={{ textAlign: 'center', marginBottom: '20px', color: '#4e342e' }}>
           Daily Updates
         </h2>
 
-        {/* Child's Name Dropdown */}
-        <label style={labelStyleCSS}>Child's Name</label>
+        {/* Child Name */}
+        <label style={labelStyle}>Child's Name</label>
         <select
           name="childName"
-          style={inputStyleCSS}
+          style={inputStyle}
           required
           value={formData.childName}
           onChange={handleChange}
         >
           <option value="" disabled>Select Child</option>
-          {availableChildren.map(kidName => (
-            <option key={kidName} value={kidName}>
-              {kidName}
-            </option>
+          {availableChildren.map(name => (
+            <option key={name} value={name}>{name}</option>
           ))}
         </select>
 
-        {/* Kid's Email (non-editable) */}
         {kidEmail && (
           <>
-            <label style={labelStyleCSS}>Email</label>
+            <label style={labelStyle}>Email</label>
             <input
               type="text"
-              value={kidEmail}
-              style={{ ...inputStyleCSSText, backgroundColor: '#e9ecef' }}
               readOnly
+              value={kidEmail}
+              style={{ ...textStyle, backgroundColor: '#e9ecef' }}
             />
           </>
         )}
 
-        {/* In and Out Time Section */}
-        <label style={labelStyleCSS}>In and Out Time</label>
-        <div style={sideBySideStyle}>
-          <div style={columnStyle}>
-            <label style={{ fontSize: '14px', fontWeight: '500', marginBottom: '5px' }}>
-              In
-            </label>
+        {/* In/Out */}
+        <label style={labelStyle}>In and Out Time</label>
+        <div style={rowStyle}>
+          <div style={colStyle}>
+            <label style={{ fontSize: '14px', fontWeight: '500' }}>In</label>
             <input
               type="time"
               name="inTime"
-              style={inputStyleCSS}
+              style={inputStyle}
               required
               value={formData.inTime}
               onChange={handleChange}
             />
           </div>
-          <div style={columnStyle}>
-            <label style={{ fontSize: '14px', fontWeight: '500', marginBottom: '5px' }}>
-              Out
-            </label>
+          <div style={colStyle}>
+            <label style={{ fontSize: '14px', fontWeight: '500' }}>Out</label>
             <input
               type="time"
               name="outTime"
-              style={inputStyleCSS}
+              style={inputStyle}
               required
               value={formData.outTime}
               onChange={handleChange}
@@ -427,172 +350,193 @@ const DailyReport = () => {
           </div>
         </div>
 
-        {/* Snack Selection */}
-        <label style={labelStyleCSS}>Child ate Snacks</label>
+        {/* Snack/Meal */}
+        <label style={labelStyle}>Child ate Snacks</label>
         <div style={{ marginBottom: '15px' }}>
-          {['All', 'Some', 'None'].map(option => (
-            <label key={option} style={{ fontWeight: '500', fontSize: '14px', marginRight: '10px' }}>
+          {['All','Some','None'].map(opt => (
+            <label key={opt} style={{ marginRight:'10px', fontWeight:'500' }}>
               <input
                 type="radio"
                 name="snack"
-                value={option}
+                value={opt}
+                checked={formData.snack===opt}
                 onChange={handleChange}
-                checked={formData.snack === option}
                 required
-              />
-              {option}
+              /> {opt}
             </label>
           ))}
         </div>
 
-        {/* Meal Selection */}
-        <label style={labelStyleCSS}>Child ate Meals</label>
+        <label style={labelStyle}>Child ate Meals</label>
         <div style={{ marginBottom: '15px' }}>
-          {['All', 'Some', 'None'].map(option => (
-            <label key={option} style={{ fontWeight: '500', fontSize: '14px', marginRight: '10px' }}>
+          {['All','Some','None'].map(opt => (
+            <label key={opt} style={{ marginRight:'10px', fontWeight:'500' }}>
               <input
                 type="radio"
                 name="meal"
-                value={option}
+                value={opt}
+                checked={formData.meal===opt}
                 onChange={handleChange}
-                checked={formData.meal === option}
                 required
-              />
-              {option}
+              /> {opt}
             </label>
           ))}
         </div>
 
-        {/* Child Slept Section */}
-        <label style={labelStyleCSS}>Child Slept</label>
-        <div style={{ marginBottom: '10px' }}>
-          <label style={{ fontWeight: '500', fontSize: '14px' }}>
+        {/* Sleep */}
+        <label style={labelStyle}>Child Slept</label>
+        <div style={{ marginBottom:'10px' }}>
+          <label style={{ fontWeight:'500', fontSize:'14px' }}>
             <input
               type="checkbox"
               name="sleepNot"
               checked={formData.sleepNot}
               onChange={handleChange}
-            />
-            Child did not sleep in school
+            /> Child did not sleep in school
           </label>
         </div>
-        <div style={sideBySideStyle}>
-          <div style={columnStyle}>
-            <label style={{ fontSize: '14px', fontWeight: '500', marginBottom: '5px' }}>
-              From
-            </label>
+        <div style={rowStyle}>
+          <div style={colStyle}>
+            <label style={{ fontSize:'14px', fontWeight:'500' }}>From</label>
             <input
               type="time"
               name="sleepFrom"
-              style={inputStyleCSS}
-              value={formData.sleepFrom}
-              onChange={handleChange}
+              style={inputStyle}
               disabled={formData.sleepNot}
               required={!formData.sleepNot}
+              value={formData.sleepFrom}
+              onChange={handleChange}
             />
           </div>
-          <div style={columnStyle}>
-            <label style={{ fontSize: '14px', fontWeight: '500', marginBottom: '5px' }}>
-              To
-            </label>
+          <div style={colStyle}>
+            <label style={{ fontSize:'14px', fontWeight:'500' }}>To</label>
             <input
               type="time"
               name="sleepTo"
-              style={inputStyleCSS}
-              value={formData.sleepTo}
-              onChange={handleChange}
+              style={inputStyle}
               disabled={formData.sleepNot}
               required={!formData.sleepNot}
+              value={formData.sleepTo}
+              onChange={handleChange}
             />
           </div>
         </div>
 
-        {/* Diaper Changes */}
-        <label style={labelStyleCSS}>Diaper Changes</label>
-        <div style={{ marginBottom: '15px' }}>
+        {/* Diaper & Poops */}
+        <label style={labelStyle}>Diaper Changes</label>
+        <div style={{ marginBottom:'15px' }}>
           {radioOptions.map(opt => (
-            <label key={opt} style={{ marginRight: '20px', fontWeight: '500' }}>
+            <label key={opt} style={{ marginRight:'20px', fontWeight:'500' }}>
               <input
                 type="radio"
                 name="diaperChanges"
                 value={String(opt)}
+                checked={formData.diaperChanges===String(opt)}
                 onChange={handleChange}
-                checked={formData.diaperChanges === String(opt)}
                 required
-              />
-              {opt}
+              /> {opt}
             </label>
           ))}
         </div>
 
-        {/* Number of Poops */}
-        <label style={labelStyleCSS}>Bowel movements</label>
-        <div style={{ marginBottom: '20px' }}>
+        <label style={labelStyle}>Bowel movements</label>
+        <div style={{ marginBottom:'20px' }}>
           {radioOptions.map(opt => (
-            <label key={opt} style={{ marginRight: '20px', fontWeight: '500' }}>
+            <label key={opt} style={{ marginRight:'20px', fontWeight:'500' }}>
               <input
                 type="radio"
                 name="poops"
                 value={String(opt)}
+                checked={formData.poops===String(opt)}
                 onChange={handleChange}
-                checked={formData.poops === String(opt)}
                 required
-              />
-              {opt}
+              /> {opt}
             </label>
           ))}
         </div>
 
-        {/* Child was Feeling */}
-        <label style={labelStyleCSS}>Child was Feeling</label>
-        <div style={{ marginBottom: '20px' }}>
-          {feelingsOptions.map(option => (
-            <label key={option.label} style={{ fontWeight: '500', fontSize: '14px', marginRight: '20px' }}>
+        {/* Feelings */}
+        <label style={labelStyle}>Child was Feeling</label>
+        <div style={{ marginBottom:'20px' }}>
+          {feelingsOptions.map(o => (
+            <label key={o.label} style={{ marginRight:'20px', fontWeight:'500' }}>
               <input
                 type="checkbox"
                 name="feelings"
-                value={option.label}
+                value={o.label}
+                checked={formData.feelings.includes(o.label)}
                 onChange={handleChange}
-                checked={formData.feelings.includes(option.label)}
-              />
-              {option.label} {option.emoji}
+              /> {o.label} {o.emoji}
             </label>
           ))}
         </div>
 
-
-        {/* Daily Theme Selection */}
-        <label style={labelStyleCSS}>Theme of the Day</label>
-        <div style={{ marginBottom: '20px' }}>
-          {availableThemes.length > 0 ? (
-            availableThemes.map(option => (
-              <label key={option} style={{ fontWeight: '500', fontSize: '14px', marginRight: '10px' }}>
-                <input
-                  type="checkbox"
-                  name="themes"
-                  value={option}
-                  checked={formData.themes.includes(option)}
-                  onChange={() => handleThemeCheckboxChange(option)}
-                />
-                {option}
-              </label>
-            ))
-          ) : (
-            <p>No themes available</p>
-          )}
+        {/* Theme of the Day */}
+        <label style={labelStyle}>Theme of the Day</label>
+        <div style={{ marginBottom:'20px' }}>
+          {availableThemes.length
+            ? availableThemes.map(opt => (
+                <label key={opt} style={{ marginRight:'10px', fontWeight:'500' }}>
+                  <input
+                    type="checkbox"
+                    name="themes"
+                    value={opt}
+                    checked={formData.themes.includes(opt)}
+                    onChange={() => handleThemeCheckboxChange(opt)}
+                  /> {opt}
+                </label>
+              ))
+            : <p>No themes available</p>}
         </div>
 
-
         {/* Teacher's Note */}
-        <label style={labelStyleCSS}>Teacher's Note</label>
+        <label style={labelStyle}>Teacher's Note</label>
         <textarea
           name="notes"
           rows="3"
           placeholder="Enter any additional notes here..."
-          style={inputStyleCSSText}
+          style={textStyle}
           value={formData.notes}
           onChange={handleChange}
-        ></textarea>
+        />
+
+        {/* Ouch Report */}
+        <div style={{ marginBottom:'15px' }}>
+          <label style={{ fontWeight:'600', display:'flex', alignItems:'center' }}>
+            <input
+              type="checkbox"
+              name="ouch"
+              checked={formData.ouch}
+              onChange={handleChange}
+              style={{ marginRight:'10px' }}
+            /> Ouch Report
+          </label>
+          {formData.ouch && (
+            <textarea
+              name="ouchReport"
+              rows="3"
+              placeholder="Describe the ouch report..."
+              style={textStyle}
+              value={formData.ouchReport}
+              onChange={handleChange}
+            />
+          )}
+        </div>
+
+        {/* Show Common Parents Note only if it's prefilled */}
+        {formData.commonParentsNote && (
+          <div style={{ marginBottom:'20px' }}>
+            <label style={labelStyle}>Common Parents Note</label>
+            <textarea
+              name="commonParentsNote"
+              rows="3"
+              placeholder="Common note for parents (you can edit)"
+              style={textStyle}
+              value={formData.commonParentsNote}
+              onChange={handleChange}
+            />
+          </div>
+        )}
 
         <button type="submit" style={buttonStyle}>Update</button>
       </form>
