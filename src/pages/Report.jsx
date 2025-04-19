@@ -25,7 +25,7 @@ const Report = () => {
   const [selectedReport, setSelectedReport] = useState(null);
   const [formData, setFormData] = useState({
     childName: '',
-    email: '',
+    emails: [],
     inTime: '',
     outTime: '',
     snack: '',
@@ -58,20 +58,20 @@ const Report = () => {
   useEffect(() => {
     const fetchThemes = async () => {
       try {
-        const themeDocRef = doc(db, 'appConfig', 'themeOfTheWeek');
-        const snapshot = await getDoc(themeDocRef);
-        if (snapshot.exists()) {
-          const data = snapshot.data();
+        const themeRef = doc(db, 'appConfig', 'themeOfTheWeek');
+        const snap = await getDoc(themeRef);
+        if (snap.exists()) {
+          const data = snap.data();
           let themes = [];
           if (Array.isArray(data.theme)) {
             themes = data.theme;
           } else if (typeof data.theme === 'string' && data.theme.trim()) {
-            themes = data.theme.split(',').map(tag => tag.trim());
+            themes = data.theme.split(',').map(t => t.trim());
           }
           setAvailableThemes(themes);
         }
-      } catch (error) {
-        console.error('Error fetching themes:', error);
+      } catch (err) {
+        console.error('Error fetching themes:', err);
       }
     };
     fetchThemes();
@@ -84,28 +84,35 @@ const Report = () => {
       const startOfDay = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
       const endOfDay = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate() + 1);
       try {
-        const reportsQuery = query(
+        const q = query(
           collection(db, 'dailyReports'),
           where('date', '>=', startOfDay),
           where('date', '<', endOfDay)
         );
-        const snapshot = await getDocs(reportsQuery);
-        const fetched = [];
-        snapshot.forEach(docSnap => fetched.push({ id: docSnap.id, ...docSnap.data() }));
+        const snap = await getDocs(q);
+        const fetched = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setReports(fetched);
-      } catch (error) {
-        console.error('Error fetching reports:', error);
+      } catch (err) {
+        console.error('Error fetching reports:', err);
       }
     };
     fetchReports();
   }, [selectedDate]);
 
-  // Load selected report into form
+  // When a report is clicked, load into form
   const handleReportSelect = report => {
     setSelectedReport(report);
+    // Use 'emails' array if present, otherwise fall back to email and email2 fields
+    let emailsArr = [];
+    if (Array.isArray(report.emails) && report.emails.length) {
+      emailsArr = report.emails;
+    } else {
+      if (report.email) emailsArr.push(report.email);
+      if (report.email2) emailsArr.push(report.email2);
+    }
     setFormData({
       childName: report.childName || '',
-      email: report.email || '',
+      emails: emailsArr,
       inTime: convertTo24HourFormat(report.inTime),
       outTime: convertTo24HourFormat(report.outTime),
       snack: report.snack || '',
@@ -132,7 +139,7 @@ const Report = () => {
     });
   };
 
-  // Handle form field changes
+  // Form change handler
   const handleChange = e => {
     const { name, value, type, checked } = e.target;
     if (type === 'checkbox' && name === 'sleepNot') {
@@ -154,18 +161,18 @@ const Report = () => {
     }
   };
 
-  // Handle radio changes
+  // Radio and text fields
   const handleRadioChange = e => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Update report in Firestore
+  // Update Firestore
   const handleUpdate = async e => {
     e.preventDefault();
     try {
-      const reportRef = doc(db, 'dailyReports', selectedReport.id);
-      await updateDoc(reportRef, {
+      const ref = doc(db, 'dailyReports', selectedReport.id);
+      await updateDoc(ref, {
         inTime: formData.inTime,
         outTime: formData.outTime,
         snack: formData.snack,
@@ -184,9 +191,8 @@ const Report = () => {
       });
       alert('Report updated successfully!');
       setSelectedReport(null);
-      setSelectedDate(selectedDate); // trigger refresh
-    } catch (error) {
-      console.error('Error updating report:', error);
+    } catch (err) {
+      console.error('Error updating report:', err);
       alert('Failed to update report.');
     }
   };
@@ -215,9 +221,7 @@ const Report = () => {
       {!selectedReport ? (
         <>
           <div style={styles.datePickerContainer}>
-            <label htmlFor="report-date" style={{ fontWeight: 'bold', marginRight: '10px' }}>
-              Select Date:
-            </label>
+            <label htmlFor="report-date" style={{ fontWeight: 'bold', marginRight: '10px' }}>Select Date:</label>
             <input
               type="date"
               id="report-date"
@@ -230,13 +234,12 @@ const Report = () => {
             <p style={{ textAlign: 'center' }}>No reports found for the selected date.</p>
           ) : (
             <div style={styles.gridContainer}>
-              {reports.map((report, index) => {
-                const colors = [ '#A0C4FF', '#FFD6A5', '#FFC6FF', '#FDFFB6', '#CAFFBF', '#9BF6FF', '#A0C4FF', '#BDB2FF', '#FFC6FF'];
-                const bgColor = colors[index % colors.length];
+              {reports.map((report, idx) => {
+                const colors = ['#A0C4FF','#FFD6A5','#FFC6FF','#FDFFB6','#CAFFBF','#9BF6FF','#BDB2FF','#FFC6FF'];
                 return (
                   <div
                     key={report.id}
-                    style={{ ...styles.reportBox, backgroundColor: bgColor }}
+                    style={{ ...styles.reportBox, backgroundColor: colors[idx % colors.length] }}
                     onClick={() => handleReportSelect(report)}
                   >
                     <strong>{report.childName}</strong>
@@ -252,20 +255,20 @@ const Report = () => {
       ) : (
         <form style={styles.formContainer} onSubmit={handleUpdate}>
           <h2 style={{ textAlign: 'center', marginBottom: '20px', color: '#4e342e' }}>Update Daily Report</h2>
+
           <label style={styles.label}>Child's Name</label>
-          <input
-            type="text"
-            name="childName"
-            style={{ ...styles.input, backgroundColor: '#e9ecef' }}
-            value={formData.childName}
-            readOnly
-          />
-          {formData.email && (
+          <input type="text" name="childName" style={{ ...styles.input, backgroundColor: '#e9ecef' }} value={formData.childName} readOnly />
+
+          {formData.emails.length > 0 && (
             <>
-              <label style={styles.label}>Email</label>
-              <input type="text" name="email" style={{ ...styles.input, backgroundColor: '#e9ecef' }} value={formData.email} readOnly />
+              <label style={styles.label}>Email{formData.emails.length > 1 ? 's' : ''}</label>
+              {formData.emails.map((em, i) => (
+                <input key={i} type="text" readOnly value={em} style={{ ...styles.input, backgroundColor: '#e9ecef' }} />
+              ))}
             </>
           )}
+
+          {/* In/Out Time */}
           <label style={styles.label}>In and Out Time</label>
           <div style={styles.inlineContainer}>
             <div style={{ flex: 1 }}>
@@ -277,23 +280,31 @@ const Report = () => {
               <input type="time" name="outTime" style={styles.inputTime} required value={formData.outTime} onChange={handleChange} />
             </div>
           </div>
+
+          {/* Snack and Meal */}
           <label style={styles.label}>Child ate Snacks</label>
           <div style={styles.radioGroup}>
-            {['All', 'Some', 'None'].map(option => (
-              <label key={option} style={{ fontWeight: '500', fontSize: '14px' }}>                  <input type="radio" name="snack" value={option} onChange={handleRadioChange} checked={formData.snack === option} required />{option}
+            {['All','Some','None'].map(opt => (
+              <label key={opt} style={{ fontWeight: '500' }}>
+                <input type="radio" name="snack" value={opt} onChange={handleRadioChange} checked={formData.snack===opt} required /> {opt}
               </label>
             ))}
           </div>
           <label style={styles.label}>Child ate Meals</label>
           <div style={styles.radioGroup}>
-            {['All', 'Some', 'None'].map(option => (
-              <label key={option} style={{ fontWeight: '500', fontSize: '14px' }}><input type="radio" name="meal" value={option} onChange={handleRadioChange} checked={formData.meal === option} required />{option}
+            {['All','Some','None'].map(opt => (
+              <label key={opt} style={{ fontWeight: '500' }}>
+                <input type="radio" name="meal" value={opt} onChange={handleRadioChange} checked={formData.meal===opt} required /> {opt}
               </label>
             ))}
           </div>
+
+          {/* Sleep */}
           <label style={styles.label}>Child Slept</label>
           <div style={{ marginBottom: '15px' }}>
-            <label style={{ fontWeight: '500', fontSize: '14px' }}><input type="checkbox" name="sleepNot" checked={formData.sleepNot} onChange={handleChange} />Child did not sleep in school</label>
+            <label style={{ fontWeight: '500' }}>
+              <input type="checkbox" name="sleepNot" checked={formData.sleepNot} onChange={handleChange} /> Child did not sleep in school
+            </label>
           </div>
           <div style={styles.inlineContainer}>
             <div style={{ flex: 1 }}>
@@ -305,53 +316,69 @@ const Report = () => {
               <input type="time" name="sleepTo" style={styles.inputTime} value={formData.sleepTo} onChange={handleChange} disabled={formData.sleepNot} required={!formData.sleepNot} />
             </div>
           </div>
+
+          {/* Diaper & Poops */}
           <label style={styles.label}>Diaper Changes</label>
           <div style={styles.radioGroup}>
             {radioOptions.map(opt => (
-              <label key={opt} style={{ marginRight: '10px', fontWeight: '500' }}>
-                <input type="radio" name="diaperChanges" value={String(opt)} onChange={handleRadioChange} checked={formData.diaperChanges === String(opt)} required />{opt}
+              <label key={opt} style={{ fontWeight: '500' }}>
+                <input type="radio" name="diaperChanges" value={String(opt)} onChange={handleRadioChange} checked={formData.diaperChanges===String(opt)} required /> {opt}
               </label>
             ))}
           </div>
           <label style={styles.label}>Bowel movements</label>
           <div style={styles.radioGroup}>
             {radioOptions.map(opt => (
-              <label key={opt} style={{ marginRight: '10px', fontWeight: '500' }}><input type="radio" name="poops" value={String(opt)} onChange={handleRadioChange} checked={formData.poops === String(opt)} required />{opt}
+              <label key={opt} style={{ fontWeight: '500' }}>
+                <input type="radio" name="poops" value={String(opt)} onChange={handleRadioChange} checked={formData.poops===String(opt)} required /> {opt}
               </label>
             ))}
           </div>
+
+          {/* Feelings */}
           <label style={styles.label}>Child was Feeling</label>
           <div style={{ marginBottom: '20px' }}>
-            {feelingsOptions.map(option => (
-              <label key={option.label} style={{ fontWeight: '500', fontSize: '14px', marginRight: '20px' }}><input type="checkbox" name="feelings" value={option.label} onChange={handleChange} checked={formData.feelings.includes(option.label)} />{option.label} {option.emoji}
+            {feelingsOptions.map(opt => (
+              <label key={opt.label} style={{ fontWeight: '500', marginRight: '20px' }}>
+                <input type="checkbox" name="feelings" value={opt.label} onChange={handleChange} checked={formData.feelings.includes(opt.label)} /> {opt.label} {opt.emoji}
               </label>
             ))}
           </div>
+
+          {/* Theme of the Day */}
           <label style={styles.label}>Theme of the Day</label>
           <div style={{ marginBottom: '20px' }}>
-            {availableThemes.length > 0 ? availableThemes.map(option => (
-              <label key={option} style={{ fontWeight: '500', fontSize: '14px', marginRight: '10px' }}><input type="checkbox" name="themeOfTheDay" value={option} onChange={handleChange} checked={formData.themeOfTheDay.includes(option)} />{option}
-              </label>
-            )) : <p>No themes available</p>}
+            {availableThemes.length > 0
+              ? availableThemes.map(opt => (
+                  <label key={opt} style={{ fontWeight: '500', marginRight: '10px' }}>
+                    <input type="checkbox" name="themeOfTheDay" value={opt} onChange={handleChange} checked={formData.themeOfTheDay.includes(opt)} /> {opt}
+                  </label>
+                ))
+              : <p>No themes available</p>
+            }
           </div>
+
+          {/* Notes */}
           <label style={styles.label}>Teacher's Note</label>
-          <textarea name="notes" rows="3" style={styles.input} value={formData.notes} onChange={handleChange}></textarea>
+          <textarea name="notes" rows="3" style={styles.input} value={formData.notes} onChange={handleChange} />
 
           {/* Ouch Report */}
           <div style={{ marginBottom: '15px' }}>
             <label style={styles.label}>
-              <input type="checkbox" name="ouch" checked={formData.ouch} onChange={handleChange} style={{ marginRight: '10px' }} />Ouch Report
+              <input type="checkbox" name="ouch" checked={formData.ouch} onChange={handleChange} /> Ouch Report
             </label>
             {formData.ouch && (
               <textarea name="ouchReport" rows="3" style={styles.input} value={formData.ouchReport} onChange={handleChange} placeholder="Describe the ouch report..." />
             )}
           </div>
 
-          {/* Common Parents Note */}
-          <div style={{ marginBottom: '20px' }}>
-            <label style={styles.label}>Common Note for Parents</label>
-            <textarea name="commonParentsNote" rows="3" style={styles.input} value={formData.commonParentsNote} onChange={handleChange} placeholder="Common note for parents" />
-          </div>
+          {/* Common Parents Note (conditional) */}
+          {formData.commonParentsNote && (
+            <div style={{ marginBottom: '20px' }}>
+              <label style={styles.label}>Common Note for Parents</label>
+              <textarea name="commonParentsNote" rows="3" style={styles.input} value={formData.commonParentsNote} onChange={handleChange} placeholder="Common note for parents" />
+            </div>
+          )}
 
           <button type="submit" style={styles.button}>Update Report</button>
           <button type="button" style={styles.backButton} onClick={() => setSelectedReport(null)}>Back to Reports List</button>

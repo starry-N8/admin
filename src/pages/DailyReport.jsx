@@ -20,7 +20,7 @@ const DailyReport = () => {
   const searchParams = new URLSearchParams(location.search);
   const childFromParam = searchParams.get('child') || '';
 
-  // Form state, now including commonParentsNote
+  // Form state (now includes email2)
   const [formData, setFormData] = useState({
     childName: childFromParam,
     inTime: '',
@@ -36,6 +36,7 @@ const DailyReport = () => {
     notes: '',
     themes: [],
     email: '',
+    email2: '',
     ouch: false,
     ouchReport: '',
     commonParentsNote: '',
@@ -43,7 +44,6 @@ const DailyReport = () => {
 
   // Other states
   const [kidsInfo, setKidsInfo] = useState([]);
-  const [kidEmail, setKidEmail] = useState('');
   const [availableThemes, setAvailableThemes] = useState([]);
   const [presentChildren, setPresentChildren] = useState({});
   const [reportedChildren, setReportedChildren] = useState([]);
@@ -147,12 +147,17 @@ const DailyReport = () => {
     loadReports();
   }, [startOfDay, endOfDay]);
 
-  // --- Auto‑fill email when childName changes ---
+  // --- Auto‑fill emails when childName changes ---
   useEffect(() => {
     if (!formData.childName || !kidsInfo.length) return;
     const kid = kidsInfo.find(k => k.name===formData.childName);
-    setKidEmail(kid?.email || '');
-    setFormData(f => ({ ...f, email: kid?.email || '' }));
+    const email1 = kid?.email || '';
+    const email2 = kid?.email2 || '';
+    setFormData(f => ({ 
+      ...f, 
+      email: email1, 
+      email2: email2 
+    }));
   }, [formData.childName, kidsInfo]);
 
   // --- Auto‑fill inTime from attendance ---
@@ -244,6 +249,7 @@ const DailyReport = () => {
         notes: '',
         themes: [],
         email: '',
+        email2: '',
         ouch: false,
         ouchReport: '',
         commonParentsNote: '',
@@ -255,7 +261,7 @@ const DailyReport = () => {
     }
   };
 
-  // Styles (same as before)...
+  // Styles
   const containerStyle = {
     background: 'linear-gradient(135deg, #ffecd2, #fcb69f)',
     minHeight: '100vh',
@@ -316,15 +322,31 @@ const DailyReport = () => {
           ))}
         </select>
 
-        {kidEmail && (
+        {/* Emails */}
+        {(formData.email || formData.email2) && (
           <>
-            <label style={labelStyle}>Email</label>
-            <input
-              type="text"
-              readOnly
-              value={kidEmail}
-              style={{ ...textStyle, backgroundColor: '#e9ecef' }}
-            />
+            {formData.email && (
+              <>
+                <label style={labelStyle}>Email</label>
+                <input
+                  type="text"
+                  readOnly
+                  value={formData.email}
+                  style={{ ...textStyle, backgroundColor: '#e9ecef' }}
+                />
+              </>
+            )}
+            {formData.email2 && (
+              <>
+                <label style={labelStyle}>Second Email</label>
+                <input
+                  type="text"
+                  readOnly
+                  value={formData.email2}
+                  style={{ ...textStyle, backgroundColor: '#e9ecef' }}
+                />
+              </>
+            )}
           </>
         )}
 
